@@ -1,5 +1,4 @@
 import datetime
-import os
 import re
 import shutil
 import stat
@@ -205,7 +204,7 @@ class CopyParser(_BaseTestParser):
 
     def parse(self, document_path, mime_type, file_name=None):
         self.text = "The text"
-        self.archive_path = os.path.join(self.tempdir, "archive.pdf")
+        self.archive_path = (self.tempdir / "archive.pdf").as_posix()
         shutil.copy(document_path, self.archive_path)
 
 
@@ -237,11 +236,11 @@ def fake_magic_from_file(file, mime=False):
     if mime:
         if file.name.startswith("invalid_pdf"):
             return "application/octet-stream"
-        if os.path.splitext(file)[1] == ".pdf":
+        if Path(file).suffix == ".pdf":
             return "application/pdf"
-        elif os.path.splitext(file)[1] == ".png":
+        elif Path(file).suffix == ".png":
             return "image/png"
-        elif os.path.splitext(file)[1] == ".webp":
+        elif Path(file).suffix == ".webp":
             return "image/webp"
         else:
             return "unknown"
@@ -362,7 +361,7 @@ class TestConsumer(
         self.assertEqual(document.content, "The Text")
         self.assertEqual(
             document.title,
-            os.path.splitext(os.path.basename(filename))[0],
+            Path(filename).stem,
         )
         self.assertIsNone(document.correspondent)
         self.assertIsNone(document.document_type)
@@ -402,7 +401,7 @@ class TestConsumer(
         # https://github.com/jonaswinkler/paperless-ng/discussions/1037
 
         filename = self.get_test_file()
-        shadow_file = os.path.join(self.dirs.scratch_dir, "._sample.pdf")
+        shadow_file = (Path(self.dirs.scratch_dir) / "._sample.pdf").as_posix()
 
         shutil.copy(filename, shadow_file)
 
@@ -1170,8 +1169,8 @@ class PreConsumeTestCase(DirectoriesMixin, GetConsumerMixin, TestCase):
                 outfile.write("echo This message goes to stderr >&2")
 
             # Make the file executable
-            st = os.stat(script.name)
-            os.chmod(script.name, st.st_mode | stat.S_IEXEC)
+            st = Path(script.name).stat()
+            Path(script.name).chmod(st.st_mode | stat.S_IEXEC)
 
             with override_settings(PRE_CONSUME_SCRIPT=script.name):
                 with self.assertLogs("paperless.consumer", level="INFO") as cm:
@@ -1202,8 +1201,8 @@ class PreConsumeTestCase(DirectoriesMixin, GetConsumerMixin, TestCase):
                 outfile.write("exit 100\n")
 
             # Make the file executable
-            st = os.stat(script.name)
-            os.chmod(script.name, st.st_mode | stat.S_IEXEC)
+            st = Path(script.name).stat()
+            Path(script.name).chmod(st.st_mode | stat.S_IEXEC)
 
             with override_settings(PRE_CONSUME_SCRIPT=script.name):
                 with self.get_consumer(self.test_file) as c:
@@ -1320,8 +1319,8 @@ class PostConsumeTestCase(DirectoriesMixin, GetConsumerMixin, TestCase):
                 outfile.write("exit -500\n")
 
             # Make the file executable
-            st = os.stat(script.name)
-            os.chmod(script.name, st.st_mode | stat.S_IEXEC)
+            st = Path(script.name).stat()
+            Path(script.name).chmod(st.st_mode | stat.S_IEXEC)
 
             with override_settings(POST_CONSUME_SCRIPT=script.name):
                 doc = Document.objects.create(title="Test", mime_type="application/pdf")

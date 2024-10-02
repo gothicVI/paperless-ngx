@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timezone
+from pathlib import Path
 
 from django.conf import settings
 from django.core.cache import cache
@@ -129,7 +130,7 @@ def thumbnail_last_modified(request, pk: int) -> datetime | None:
     """
     try:
         doc = Document.objects.only("storage_type").get(pk=pk)
-        if not doc.thumbnail_path.exists():
+        if not Path(doc.thumbnail_path).exists():
             return None
         doc_key = get_thumbnail_modified_key(pk)
 

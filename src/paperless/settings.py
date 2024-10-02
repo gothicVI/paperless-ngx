@@ -18,13 +18,13 @@ from dotenv import load_dotenv
 
 # Tap paperless.conf if it's available
 configuration_path = os.getenv("PAPERLESS_CONFIGURATION_PATH")
-if configuration_path and os.path.exists(configuration_path):
+if configuration_path and Path(configuration_path).exists():
     load_dotenv(configuration_path)
-elif os.path.exists("../paperless.conf"):
+elif Path("../paperless.conf").exists():
     load_dotenv("../paperless.conf")
-elif os.path.exists("/etc/paperless.conf"):
+elif Path("/etc/paperless.conf").exists():
     load_dotenv("/etc/paperless.conf")
-elif os.path.exists("/usr/local/etc/paperless.conf"):
+elif Path("/usr/local/etc/paperless.conf").exists():
     load_dotenv("/usr/local/etc/paperless.conf")
 
 # There are multiple levels of concurrency in paperless:
@@ -603,7 +603,7 @@ def _parse_db_settings() -> dict:
     databases = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": os.path.join(DATA_DIR, "db.sqlite3"),
+            "NAME": (DATA_DIR / "db.sqlite3").as_posix(),
             "OPTIONS": {},
         },
     }
@@ -716,7 +716,7 @@ LANGUAGES = [
     ("zh-cn", _("Chinese Simplified")),
 ]
 
-LOCALE_PATHS = [os.path.join(BASE_DIR, "locale")]
+LOCALE_PATHS = [(BASE_DIR / "locale").as_posix()]
 
 TIME_ZONE = os.getenv("PAPERLESS_TIME_ZONE", "UTC")
 
@@ -759,21 +759,21 @@ LOGGING = {
         "file_paperless": {
             "class": "concurrent_log_handler.ConcurrentRotatingFileHandler",
             "formatter": "verbose",
-            "filename": os.path.join(LOGGING_DIR, "paperless.log"),
+            "filename": (LOGGING_DIR / "paperless.log").as_posix(),
             "maxBytes": LOGROTATE_MAX_SIZE,
             "backupCount": LOGROTATE_MAX_BACKUPS,
         },
         "file_mail": {
             "class": "concurrent_log_handler.ConcurrentRotatingFileHandler",
             "formatter": "verbose",
-            "filename": os.path.join(LOGGING_DIR, "mail.log"),
+            "filename": (LOGGING_DIR / "mail.log").as_posix(),
             "maxBytes": LOGROTATE_MAX_SIZE,
             "backupCount": LOGROTATE_MAX_BACKUPS,
         },
         "file_celery": {
             "class": "concurrent_log_handler.ConcurrentRotatingFileHandler",
             "formatter": "verbose",
-            "filename": os.path.join(LOGGING_DIR, "celery.log"),
+            "filename": (LOGGING_DIR / "celery.log").as_posix(),
             "maxBytes": LOGROTATE_MAX_SIZE,
             "backupCount": LOGROTATE_MAX_BACKUPS,
         },
@@ -826,7 +826,7 @@ CELERY_ACCEPT_CONTENT = ["application/json", "application/x-python-serialize"]
 CELERY_BEAT_SCHEDULE = _parse_beat_schedule()
 
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#beat-schedule-filename
-CELERY_BEAT_SCHEDULE_FILENAME = os.path.join(DATA_DIR, "celerybeat-schedule.db")
+CELERY_BEAT_SCHEDULE_FILENAME = (DATA_DIR / "celerybeat-schedule.db").as_posix()
 
 # django setting.
 CACHES = {

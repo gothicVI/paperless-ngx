@@ -60,7 +60,7 @@ class BulkArchiveStrategy:
                 raise ValueError("doc %a has no filename", doc)
             in_archive_path = Path(folder) / doc.filename
 
-        return in_archive_path
+        return in_archive_path.as_posix()
 
     def add_document(self, doc: Document) -> NoReturn:
         raise NotImplementedError  # pragma: no cover

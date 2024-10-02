@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from django.conf import settings
 
@@ -8,11 +9,11 @@ from documents.templating.utils import convert_format_str_to_template_format
 
 
 def create_source_path_directory(source_path):
-    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    Path(source_path).parent.mkdir(parents=True, exist_ok=True)
 
 
 def delete_empty_directories(directory, root):
-    if not os.path.isdir(directory):
+    if not Path(directory).is_dir():
         return
 
     # Go up in the directory hierarchy and try to delete all directories
@@ -31,7 +32,7 @@ def delete_empty_directories(directory, root):
         if not os.listdir(directory):
             # it's empty
             try:
-                os.rmdir(directory)
+                Path(directory).rmdir()
             except OSError:
                 # whatever. empty directories aren't that bad anyway.
                 return
@@ -40,7 +41,7 @@ def delete_empty_directories(directory, root):
             return
 
         # go one level up
-        directory = os.path.normpath(os.path.dirname(directory))
+        directory = Path(directory).parent.as_posix()
 
 
 def generate_unique_filename(doc, archive_filename=False):
@@ -66,10 +67,8 @@ def generate_unique_filename(doc, archive_filename=False):
     # the original filename first.
 
     if archive_filename and doc.filename:
-        new_filename = os.path.splitext(doc.filename)[0] + ".pdf"
-        if new_filename == old_filename or not os.path.exists(
-            os.path.join(root, new_filename),
-        ):
+        new_filename = Path(doc.filename).stem + ".pdf"
+        if new_filename == old_filename or not (Path(root) / new_filename).exists():
             return new_filename
 
     counter = 0
@@ -84,7 +83,7 @@ def generate_unique_filename(doc, archive_filename=False):
             # still the same as before.
             return new_filename
 
-        if os.path.exists(os.path.join(root, new_filename)):
+        if (Path(root) / new_filename).exists():
             counter += 1
         else:
             return new_filename

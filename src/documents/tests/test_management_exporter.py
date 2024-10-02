@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import shutil
 import tempfile
 from io import StringIO
@@ -177,16 +176,16 @@ class TestExportImport(
 
         call_command(*args)
 
-        with open(os.path.join(self.target, "manifest.json")) as f:
+        with (self.target / "manifest.json").open() as f:
             manifest = json.load(f)
 
         return manifest
 
     def test_exporter(self, use_filename_format=False):
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         num_permission_objects = Permission.objects.count()
@@ -204,7 +203,7 @@ class TestExportImport(
             4,
         )
 
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
+        self.assertIsFile((self.target / "manifest.json").as_posix())
 
         self.assertEqual(
             self._get_document_from_manifest(manifest, self.d1.id)["fields"]["title"],
@@ -225,19 +224,17 @@ class TestExportImport(
 
         for element in manifest:
             if element["model"] == "documents.document":
-                fname = os.path.join(
-                    self.target,
-                    element[document_exporter.EXPORTER_FILE_NAME],
-                )
+                fname = (
+                    self.target / element[document_exporter.EXPORTER_FILE_NAME]
+                ).as_posix()
                 self.assertIsFile(fname)
                 self.assertIsFile(
-                    os.path.join(
-                        self.target,
-                        element[document_exporter.EXPORTER_THUMBNAIL_NAME],
-                    ),
+                    (
+                        self.target / element[document_exporter.EXPORTER_THUMBNAIL_NAME]
+                    ).as_posix(),
                 )
 
-                with open(fname, "rb") as f:
+                with Path(fname).open("rb") as f:
                     checksum = hashlib.md5(f.read()).hexdigest()
                 self.assertEqual(checksum, element["fields"]["checksum"])
 
@@ -247,13 +244,12 @@ class TestExportImport(
                 )
 
                 if document_exporter.EXPORTER_ARCHIVE_NAME in element:
-                    fname = os.path.join(
-                        self.target,
-                        element[document_exporter.EXPORTER_ARCHIVE_NAME],
-                    )
+                    fname = (
+                        self.target / element[document_exporter.EXPORTER_ARCHIVE_NAME]
+                    ).as_posix()
                     self.assertIsFile(fname)
 
-                    with open(fname, "rb") as f:
+                    with Path(fname).open("rb") as f:
                         checksum = hashlib.md5(f.read()).hexdigest()
                     self.assertEqual(checksum, element["fields"]["archive_checksum"])
 
@@ -291,10 +287,10 @@ class TestExportImport(
             self.assertEqual(len(messages), 0)
 
     def test_exporter_with_filename_format(self):
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         with override_settings(
@@ -303,16 +299,16 @@ class TestExportImport(
             self.test_exporter(use_filename_format=True)
 
     def test_update_export_changed_time(self):
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         self._do_export()
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
+        self.assertIsFile((self.target / "manifest.json").as_posix())
 
-        st_mtime_1 = os.stat(os.path.join(self.target, "manifest.json")).st_mtime
+        st_mtime_1 = (self.target / "manifest.json").stat().st_mtime
 
         with mock.patch(
             "documents.management.commands.document_exporter.copy_file_with_basic_stats",
@@ -320,8 +316,8 @@ class TestExportImport(
             self._do_export()
             m.assert_not_called()
 
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
-        st_mtime_2 = os.stat(os.path.join(self.target, "manifest.json")).st_mtime
+        self.assertIsFile((self.target / "manifest.json").as_posix())
+        st_mtime_2 = (self.target / "manifest.json").stat().st_mtime
 
         Path(self.d1.source_path).touch()
 
@@ -331,22 +327,22 @@ class TestExportImport(
             self._do_export()
             self.assertEqual(m.call_count, 1)
 
-        st_mtime_3 = os.stat(os.path.join(self.target, "manifest.json")).st_mtime
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
+        st_mtime_3 = (self.target / "manifest.json").stat().st_mtime
+        self.assertIsFile((self.target / "manifest.json").as_posix())
 
         self.assertNotEqual(st_mtime_1, st_mtime_2)
         self.assertNotEqual(st_mtime_2, st_mtime_3)
 
     def test_update_export_changed_checksum(self):
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         self._do_export()
 
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
+        self.assertIsFile((self.target / "manifest.json").as_posix())
 
         with mock.patch(
             "documents.management.commands.document_exporter.copy_file_with_basic_stats",
@@ -354,7 +350,7 @@ class TestExportImport(
             self._do_export()
             m.assert_not_called()
 
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
+        self.assertIsFile((self.target / "manifest.json").as_posix())
 
         self.d2.checksum = "asdfasdgf3"
         self.d2.save()
@@ -365,13 +361,13 @@ class TestExportImport(
             self._do_export(compare_checksums=True)
             self.assertEqual(m.call_count, 1)
 
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
+        self.assertIsFile((self.target / "manifest.json").as_posix())
 
     def test_update_export_deleted_document(self):
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         manifest = self._do_export()
@@ -379,7 +375,7 @@ class TestExportImport(
         self.assertTrue(len(manifest), 7)
         doc_from_manifest = self._get_document_from_manifest(manifest, self.d3.id)
         self.assertIsFile(
-            os.path.join(self.target, doc_from_manifest[EXPORTER_FILE_NAME]),
+            (self.target / doc_from_manifest[EXPORTER_FILE_NAME]).as_posix(),
         )
         self.d3.delete()
 
@@ -391,39 +387,39 @@ class TestExportImport(
             self.d3.id,
         )
         self.assertIsFile(
-            os.path.join(self.target, doc_from_manifest[EXPORTER_FILE_NAME]),
+            (self.target / doc_from_manifest[EXPORTER_FILE_NAME]).as_posix(),
         )
 
         manifest = self._do_export(delete=True)
         self.assertIsNotFile(
-            os.path.join(self.target, doc_from_manifest[EXPORTER_FILE_NAME]),
+            (self.target / doc_from_manifest[EXPORTER_FILE_NAME]).as_posix(),
         )
 
         self.assertTrue(len(manifest), 6)
 
     @override_settings(FILENAME_FORMAT="{title}/{correspondent}")
     def test_update_export_changed_location(self):
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         self._do_export(use_filename_format=True)
-        self.assertIsFile(os.path.join(self.target, "wow1", "c.pdf"))
+        self.assertIsFile((self.target / "wow1" / "c.pdf").as_posix())
 
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
+        self.assertIsFile((self.target / "manifest.json").as_posix())
 
         self.d1.title = "new_title"
         self.d1.save()
         self._do_export(use_filename_format=True, delete=True)
-        self.assertIsNotFile(os.path.join(self.target, "wow1", "c.pdf"))
-        self.assertIsNotDir(os.path.join(self.target, "wow1"))
-        self.assertIsFile(os.path.join(self.target, "new_title", "c.pdf"))
-        self.assertIsFile(os.path.join(self.target, "manifest.json"))
-        self.assertIsFile(os.path.join(self.target, "wow2", "none.pdf"))
+        self.assertIsNotFile((self.target / "wow1" / "c.pdf").as_posix())
+        self.assertIsNotDir((self.target / "wow1").as_posix())
+        self.assertIsFile((self.target / "new_title" / "c.pdf").as_posix())
+        self.assertIsFile((self.target / "manifest.json").as_posix())
+        self.assertIsFile((self.target / "wow2" / "none.pdf").as_posix())
         self.assertIsFile(
-            os.path.join(self.target, "wow2", "none_01.pdf"),
+            (self.target / "wow2" / "none_01.pdf").as_posix(),
         )
 
     def test_export_missing_files(self):
@@ -448,20 +444,19 @@ class TestExportImport(
             - Zipfile is created
             - Zipfile contains exported files
         """
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         args = ["document_exporter", self.target, "--zip"]
 
         call_command(*args)
 
-        expected_file = os.path.join(
-            self.target,
-            f"export-{timezone.localdate().isoformat()}.zip",
-        )
+        expected_file = (
+            self.target / f"export-{timezone.localdate().isoformat()}.zip"
+        ).as_posix()
 
         self.assertIsFile(expected_file)
 
@@ -482,10 +477,10 @@ class TestExportImport(
             - Zipfile is created
             - Zipfile contains exported files
         """
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         args = ["document_exporter", self.target, "--zip", "--use-filename-format"]
@@ -495,10 +490,9 @@ class TestExportImport(
         ):
             call_command(*args)
 
-        expected_file = os.path.join(
-            self.target,
-            f"export-{timezone.localdate().isoformat()}.zip",
-        )
+        expected_file = (
+            self.target / f"export-{timezone.localdate().isoformat()}.zip"
+        ).as_posix()
 
         self.assertIsFile(expected_file)
 
@@ -523,10 +517,10 @@ class TestExportImport(
             - Zipfile contains exported files
             - The existing file and directory in target are removed
         """
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         # Create stuff in target directory
@@ -542,10 +536,9 @@ class TestExportImport(
 
         call_command(*args)
 
-        expected_file = os.path.join(
-            self.target,
-            f"export-{timezone.localdate().isoformat()}.zip",
-        )
+        expected_file = (
+            self.target / f"export-{timezone.localdate().isoformat()}.zip"
+        ).as_posix()
 
         self.assertIsFile(expected_file)
         self.assertIsNotFile(existing_file)
@@ -600,7 +593,7 @@ class TestExportImport(
             - Error is raised
         """
         with tempfile.TemporaryDirectory() as tmp_dir:
-            os.chmod(tmp_dir, 0o000)
+            Path(tmp_dir).chmod(0o000)
 
             args = ["document_exporter", tmp_dir]
 
@@ -619,10 +612,10 @@ class TestExportImport(
             - Manifest.json doesn't contain information about archive files
             - Documents can be imported again
         """
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         manifest = self._do_export()
@@ -660,10 +653,10 @@ class TestExportImport(
             - Manifest.json doesn't contain information about thumbnails
             - Documents can be imported again
         """
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         manifest = self._do_export()
@@ -703,10 +696,10 @@ class TestExportImport(
             - Main manifest.json file doesn't contain information about documents
             - Documents can be imported again
         """
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         manifest = self._do_export(split_manifest=True)
@@ -734,10 +727,10 @@ class TestExportImport(
         THEN:
             - Documents can be imported again
         """
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         self._do_export(use_folder_prefix=True)
@@ -759,10 +752,10 @@ class TestExportImport(
             - ContentType & Permission objects are not deleted, db transaction rolled back
         """
 
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         num_content_type_objects = ContentType.objects.count()
@@ -794,10 +787,10 @@ class TestExportImport(
             self.assertEqual(Permission.objects.count(), num_permission_objects + 1)
 
     def test_exporter_with_auditlog_disabled(self):
-        shutil.rmtree(os.path.join(self.dirs.media_dir, "documents"))
+        shutil.rmtree((Path(self.dirs.media_dir) / "documents").as_posix())
         shutil.copytree(
-            os.path.join(os.path.dirname(__file__), "samples", "documents"),
-            os.path.join(self.dirs.media_dir, "documents"),
+            (Path(__file__).parent / "samples" / "documents").as_posix(),
+            (Path(self.dirs.media_dir) / "documents").as_posix(),
         )
 
         with override_settings(

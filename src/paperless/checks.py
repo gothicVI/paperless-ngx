@@ -3,6 +3,7 @@ import os
 import pwd
 import shutil
 import stat
+from pathlib import Path
 
 from django.conf import settings
 from django.core.checks import Error
@@ -22,20 +23,19 @@ writeable_hint = (
 def path_check(var, directory):
     messages = []
     if directory:
-        if not os.path.isdir(directory):
+        if not Path(directory).is_dir():
             messages.append(
                 Error(exists_message.format(var), exists_hint.format(directory)),
             )
         else:
-            test_file = os.path.join(
-                directory,
-                f"__paperless_write_test_{os.getpid()}__",
-            )
+            test_file = (
+                Path(directory) / f"__paperless_write_test_{os.getpid()}__"
+            ).as_posix()
             try:
-                with open(test_file, "w"):
+                with Path(test_file).open("w"):
                     pass
             except PermissionError:
-                dir_stat = os.stat(directory)
+                dir_stat = Path(directory).stat()
                 dir_mode = stat.filemode(dir_stat.st_mode)
                 dir_owner = pwd.getpwuid(dir_stat.st_uid).pw_name
                 dir_group = grp.getgrgid(dir_stat.st_gid).gr_name
@@ -48,8 +48,8 @@ def path_check(var, directory):
                     ),
                 )
             finally:
-                if os.path.isfile(test_file):
-                    os.remove(test_file)
+                if Path(test_file).is_file():
+                    Path(test_file).unlink()
 
     return messages
 

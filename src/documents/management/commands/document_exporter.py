@@ -217,10 +217,7 @@ class Command(CryptMixin, BaseCommand):
                 # now make an archive in the original target, with all files stored
                 if self.zip_export and temp_dir is not None:
                     shutil.make_archive(
-                        os.path.join(
-                            self.original_target,
-                            options["zip_name"],
-                        ),
+                        (self.original_target / options["zip_name"]).as_posix(),
                         format="zip",
                         root_dir=temp_dir.name,
                     )
@@ -432,14 +429,14 @@ class Command(CryptMixin, BaseCommand):
         """
         original_name = base_name
         if self.use_folder_prefix:
-            original_name = os.path.join("originals", original_name)
+            original_name = (Path("originals") / original_name).as_posix()
         original_target = (self.target / Path(original_name)).resolve()
         document_dict[EXPORTER_FILE_NAME] = original_name
 
         if not self.no_thumbnail:
             thumbnail_name = base_name + "-thumbnail.webp"
             if self.use_folder_prefix:
-                thumbnail_name = os.path.join("thumbnails", thumbnail_name)
+                thumbnail_name = (Path("thumbnails") / thumbnail_name).as_posix()
             thumbnail_target = (self.target / Path(thumbnail_name)).resolve()
             document_dict[EXPORTER_THUMBNAIL_NAME] = thumbnail_name
         else:
@@ -448,7 +445,7 @@ class Command(CryptMixin, BaseCommand):
         if not self.no_archive and document.has_archive_version:
             archive_name = base_name + "-archive.pdf"
             if self.use_folder_prefix:
-                archive_name = os.path.join("archive", archive_name)
+                archive_name = (Path("archive") / archive_name).as_posix()
             archive_target = (self.target / Path(archive_name)).resolve()
             document_dict[EXPORTER_ARCHIVE_NAME] = archive_name
         else:
@@ -526,7 +523,7 @@ class Command(CryptMixin, BaseCommand):
         perform_copy = False
 
         if target.exists():
-            source_stat = os.stat(source)
+            source_stat = source.stat()
             target_stat = target.stat()
             if self.compare_checksums and source_checksum:
                 target_checksum = hashlib.md5(target.read_bytes()).hexdigest()

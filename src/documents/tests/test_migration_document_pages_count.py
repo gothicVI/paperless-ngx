@@ -1,4 +1,3 @@
-import os
 import shutil
 from pathlib import Path
 
@@ -11,7 +10,7 @@ def source_path_before(self):
     if self.filename:
         fname = str(self.filename)
 
-    return os.path.join(settings.ORIGINALS_DIR, fname)
+    return (Path(settings.ORIGINALS_DIR) / fname).as_posix()
 
 
 class TestMigrateDocumentPageCount(TestMigrations):

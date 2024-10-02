@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 import gnupg
 from django.conf import settings
@@ -34,16 +35,16 @@ class GnuPG:
 
 
 def move_documents_and_create_thumbnails(apps, schema_editor):
-    os.makedirs(
-        os.path.join(settings.MEDIA_ROOT, "documents", "originals"),
+    (Path(settings.MEDIA_ROOT) / "documents" / "originals").mkdir(
+        parents=True,
         exist_ok=True,
     )
-    os.makedirs(
-        os.path.join(settings.MEDIA_ROOT, "documents", "thumbnails"),
+    (Path(settings.MEDIA_ROOT) / "documents" / "thumbnails").mkdir(
+        parents=True,
         exist_ok=True,
     )
 
-    documents = os.listdir(os.path.join(settings.MEDIA_ROOT, "documents"))
+    documents = os.listdir((Path(settings.MEDIA_ROOT) / "documents").as_posix())
 
     if set(documents) == {"originals", "thumbnails"}:
         return
@@ -61,7 +62,7 @@ def move_documents_and_create_thumbnails(apps, schema_editor):
     )
 
     try:
-        os.makedirs(settings.SCRATCH_DIR)
+        Path(settings.SCRATCH_DIR).mkdir(parents=True)
     except FileExistsError:
         pass
 
@@ -80,12 +81,11 @@ def move_documents_and_create_thumbnails(apps, schema_editor):
         thumb_temp = tempfile.mkdtemp(prefix="paperless", dir=settings.SCRATCH_DIR)
         orig_temp = tempfile.mkdtemp(prefix="paperless", dir=settings.SCRATCH_DIR)
 
-        orig_source = os.path.join(settings.MEDIA_ROOT, "documents", f)
-        orig_target = os.path.join(orig_temp, f.replace(".gpg", ""))
+        orig_source = (Path(settings.MEDIA_ROOT) / "documents" / f).as_posix()
+        orig_target = (Path(orig_temp) / f.replace(".gpg", "")).as_posix()
 
-        with open(orig_source, "rb") as encrypted:
-            with open(orig_target, "wb") as unencrypted:
-                unencrypted.write(GnuPG.decrypted(encrypted))
+        with orig_source.open("rb") as encrypted, orig_target.open("wb") as unencrypted:
+            unencrypted.write(GnuPG.decrypted(encrypted))
 
         subprocess.Popen(
             (
@@ -95,27 +95,29 @@ def move_documents_and_create_thumbnails(apps, schema_editor):
                 "-alpha",
                 "remove",
                 orig_target,
-                os.path.join(thumb_temp, "convert-%04d.png"),
+                (Path(thumb_temp) / "convert-%04d.png").as_posix(),
             ),
         ).wait()
 
-        thumb_source = os.path.join(thumb_temp, "convert-0000.png")
-        thumb_target = os.path.join(
-            settings.MEDIA_ROOT,
-            "documents",
-            "thumbnails",
-            re.sub(r"(\d+)\.\w+(\.gpg)", "\\1.png\\2", f),
-        )
-        with open(thumb_source, "rb") as unencrypted:
-            with open(thumb_target, "wb") as encrypted:
-                encrypted.write(GnuPG.encrypted(unencrypted))
+        thumb_source = (Path(thumb_temp) / "convert-0000.png").as_posix()
+        thumb_target = (
+            Path(settings.MEDIA_ROOT)
+            / "documents"
+            / "thumbnails"
+            / re.sub(r"(\d+)\.\w+(\.gpg)", "\\1.png\\2", f)
+        ).as_posix()
+        with (
+            thumb_source.open("rb") as unencrypted,
+            thumb_target.open("wb") as encrypted,
+        ):
+            encrypted.write(GnuPG.encrypted(unencrypted))
 
         shutil.rmtree(thumb_temp)
         shutil.rmtree(orig_temp)
 
         shutil.move(
-            os.path.join(settings.MEDIA_ROOT, "documents", f),
-            os.path.join(settings.MEDIA_ROOT, "documents", "originals", f),
+            (Path(settings.MEDIA_ROOT) / "documents" / f).as_posix(),
+            (Path(settings.MEDIA_ROOT) / "documents" / "originals" / f).as_posix(),
         )
 
 

@@ -277,7 +277,7 @@ def merge(
         / f"{'_'.join([str(doc_id) for doc_id in doc_ids])[:100]}_merged.pdf"
     )
     merged_pdf.remove_unreferenced_resources()
-    merged_pdf.save(filepath, min_version=version)
+    merged_pdf.save(filepath.as_posix(), min_version=version)
     merged_pdf.close()
 
     if metadata_document_id:
@@ -296,7 +296,7 @@ def merge(
     consume_task = consume_file.s(
         ConsumableDocument(
             source=DocumentSource.ConsumeFolder,
-            original_file=filepath,
+            original_file=filepath.as_posix(),
         ),
         overrides,
     )
@@ -339,7 +339,7 @@ def split(
                     / f"{doc.id}_{split_doc[0]}-{split_doc[-1]}.pdf"
                 )
                 dst.remove_unreferenced_resources()
-                dst.save(filepath)
+                dst.save(filepath.as_posix())
                 dst.close()
 
                 overrides = DocumentMetadataOverrides().from_document(doc)
@@ -353,7 +353,7 @@ def split(
                     consume_file.s(
                         ConsumableDocument(
                             source=DocumentSource.ConsumeFolder,
-                            original_file=filepath,
+                            original_file=filepath.as_posix(),
                         ),
                         overrides,
                     ),

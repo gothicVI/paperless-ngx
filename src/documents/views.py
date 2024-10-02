@@ -431,7 +431,7 @@ class DocumentViewSet(
         )
 
     def get_metadata(self, file, mime_type):
-        if not os.path.isfile(file):
+        if not Path(file).is_file():
             return None
 
         parser_class = get_parser_class_for_mime_type(mime_type)
@@ -449,8 +449,8 @@ class DocumentViewSet(
             return []
 
     def get_filesize(self, filename):
-        if os.path.isfile(filename):
-            return os.stat(filename).st_size
+        if Path(filename).is_file():
+            return Path(filename).stat().st_size
         else:
             return None
 
@@ -907,7 +907,7 @@ class LogViewSet(ViewSet):
     log_files = ["paperless", "mail"]
 
     def get_log_filename(self, log):
-        return os.path.join(settings.LOGGING_DIR, f"{log}.log")
+        return (Path(settings.LOGGING_DIR) / f"{log}.log").as_posix()
 
     def retrieve(self, request, pk=None, *args, **kwargs):
         if pk not in self.log_files:
@@ -915,17 +915,17 @@ class LogViewSet(ViewSet):
 
         filename = self.get_log_filename(pk)
 
-        if not os.path.isfile(filename):
+        if not Path(filename).is_file():
             raise Http404
 
-        with open(filename) as f:
+        with Path(filename).open() as f:
             lines = [line.rstrip() for line in f.readlines()]
 
         return Response(lines)
 
     def list(self, request, *args, **kwargs):
         exist = [
-            log for log in self.log_files if os.path.isfile(self.get_log_filename(log))
+            log for log in self.log_files if Path(self.get_log_filename(log)).is_file()
         ]
         return Response(exist)
 
@@ -1507,7 +1507,7 @@ class BulkDownloadView(GenericAPIView):
             for document in Document.objects.filter(pk__in=ids):
                 strategy.add_document(document)
 
-        with open(temp.name, "rb") as f:
+        with Path(temp.name).open("rb") as f:
             response = HttpResponse(f, content_type="application/zip")
             response["Content-Disposition"] = '{}; filename="{}"'.format(
                 "attachment",
@@ -2056,7 +2056,7 @@ class SystemStatusView(PassUserMixin):
                             matching_algorithm=Tag.MATCH_AUTO,
                         ).exists()
                     )
-                    and not os.path.isfile(settings.MODEL_FILE)
+                    and not Path(settings.MODEL_FILE).is_file()
                 ):
                     # if classifier file doesn't exist just classify as a warning
                     classifier_error = "Classifier file does not exist (yet). Re-training may be pending."

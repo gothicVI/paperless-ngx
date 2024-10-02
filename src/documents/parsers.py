@@ -181,7 +181,7 @@ def get_default_thumbnail() -> Path:
 
 
 def make_thumbnail_from_pdf_gs_fallback(in_path, temp_dir, logging_group=None) -> str:
-    out_path = os.path.join(temp_dir, "convert_gs.webp")
+    out_path = (Path(temp_dir) / "convert_gs.webp").as_posix()
 
     # if convert fails, fall back to extracting
     # the first PDF page as a PNG using Ghostscript
@@ -191,7 +191,7 @@ def make_thumbnail_from_pdf_gs_fallback(in_path, temp_dir, logging_group=None) -
         extra={"group": logging_group},
     )
     # Ghostscript doesn't handle WebP outputs
-    gs_out_path = os.path.join(temp_dir, "gs_out.png")
+    gs_out_path = (Path(temp_dir) / "gs_out.png").as_posix()
     cmd = [settings.GS_BINARY, "-q", "-sDEVICE=pngalpha", "-o", gs_out_path, in_path]
 
     try:
@@ -219,7 +219,7 @@ def make_thumbnail_from_pdf_gs_fallback(in_path, temp_dir, logging_group=None) -
         # The caller might expect a generated thumbnail that can be moved,
         # so we need to copy it before it gets moved.
         # https://github.com/paperless-ngx/paperless-ngx/issues/3631
-        default_thumbnail_path = os.path.join(temp_dir, "document.webp")
+        default_thumbnail_path = (Path(temp_dir) / "document.webp").as_posix()
         copy_file_with_basic_stats(get_default_thumbnail(), default_thumbnail_path)
         return default_thumbnail_path
 

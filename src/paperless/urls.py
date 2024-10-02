@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from django.conf import settings
 from django.conf.urls import include
@@ -229,7 +229,7 @@ urlpatterns = [
     re_path(
         r"^logo(?P<path>.*)$",
         serve,
-        kwargs={"document_root": os.path.join(settings.MEDIA_ROOT, "logo")},
+        kwargs={"document_root": (Path(settings.MEDIA_ROOT) / "logo").as_posix()},
     ),
     # login, logout
     path("accounts/", include("allauth.urls")),

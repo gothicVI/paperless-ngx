@@ -1,9 +1,9 @@
 import datetime
 import io
 import json
-import os
 import shutil
 import zipfile
+from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.test import override_settings
@@ -52,19 +52,19 @@ class TestBulkDownload(DirectoriesMixin, APITestCase):
         )
 
         shutil.copy(
-            os.path.join(os.path.dirname(__file__), "samples", "simple.pdf"),
+            (Path(__file__).parent / "samples" / "simple.pdf").as_posix(),
             self.doc2.source_path,
         )
         shutil.copy(
-            os.path.join(os.path.dirname(__file__), "samples", "simple.png"),
+            (Path(__file__).parent / "samples" / "simple.png").as_posix(),
             self.doc2b.source_path,
         )
         shutil.copy(
-            os.path.join(os.path.dirname(__file__), "samples", "simple.jpg"),
+            (Path(__file__).parent / "samples" / "simple.jpg").as_posix(),
             self.doc3.source_path,
         )
         shutil.copy(
-            os.path.join(os.path.dirname(__file__), "samples", "test_with_bom.pdf"),
+            (Path(__file__).parent / "samples" / "test_with_bom.pdf").as_posix(),
             self.doc3.archive_path,
         )
 

@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+from pathlib import Path
 
 from celery import states
 from celery.signals import before_task_publish
@@ -310,15 +311,17 @@ def cleanup_document_deletion(sender, instance, **kwargs):
             # name was moved to trash earlier
             counter = 0
             old_filename = os.path.split(instance.source_path)[1]
-            (old_filebase, old_fileext) = os.path.splitext(old_filename)
+            (old_filebase, old_fileext) = os.path.splitext(old_filename)  # noqa: PTH122
 
             while True:
-                new_file_path = os.path.join(
-                    settings.EMPTY_TRASH_DIR,
-                    old_filebase + (f"_{counter:02}" if counter else "") + old_fileext,
-                )
+                new_file_path = (
+                    Path(settings.EMPTY_TRASH_DIR)
+                    / old_filebase
+                    / (f"_{counter:02}" if counter else "")
+                    / old_fileext
+                ).as_posix()
 
-                if os.path.exists(new_file_path):
+                if Path(new_file_path).exists():
                     counter += 1
                 else:
                     break
@@ -338,9 +341,9 @@ def cleanup_document_deletion(sender, instance, **kwargs):
             instance.archive_path,
             instance.thumbnail_path,
         ):
-            if filename and os.path.isfile(filename):
+            if filename and Path(filename).is_file():
                 try:
-                    os.unlink(filename)
+                    Path(filename).unlink()
                     logger.debug(f"Deleted file {filename}.")
                 except OSError as e:
                     logger.warning(
@@ -349,13 +352,13 @@ def cleanup_document_deletion(sender, instance, **kwargs):
                     )
 
         delete_empty_directories(
-            os.path.dirname(instance.source_path),
+            Path(instance.source_path).parent,
             root=settings.ORIGINALS_DIR,
         )
 
         if instance.has_archive_version:
             delete_empty_directories(
-                os.path.dirname(instance.archive_path),
+                Path(instance.archive_path).parent,
                 root=settings.ARCHIVE_DIR,
             )
 
@@ -376,13 +379,13 @@ def update_filename_and_move_files(
         instance = instance.document
 
     def validate_move(instance, old_path, new_path):
-        if not os.path.isfile(old_path):
+        if not Path(old_path).is_file():
             # Can't do anything if the old file does not exist anymore.
             msg = f"Document {instance!s}: File {old_path} doesn't exist."
             logger.fatal(msg)
             raise CannotMoveFilesException(msg)
 
-        if os.path.isfile(new_path):
+        if Path(new_path).is_file():
             # Can't do anything if the new file already exists. Skip updating file.
             msg = f"Document {instance!s}: Cannot rename file since target path {new_path} already exists."
             logger.warning(msg)
@@ -461,11 +464,11 @@ def update_filename_and_move_files(
 
             # Try to move files to their original location.
             try:
-                if move_original and os.path.isfile(instance.source_path):
+                if move_original and instance.source_path.is_file():
                     logger.info("Restoring previous original path")
                     shutil.move(instance.source_path, old_source_path)
 
-                if move_archive and os.path.isfile(instance.archive_path):
+                if move_archive and Path(instance.archive_path).is_file():
                     logger.info("Restoring previous archive path")
                     shutil.move(instance.archive_path, old_archive_path)
 
@@ -486,17 +489,15 @@ def update_filename_and_move_files(
 
         # finally, remove any empty sub folders. This will do nothing if
         # something has failed above.
-        if not os.path.isfile(old_source_path):
+        if not Path(old_source_path).is_file():
             delete_empty_directories(
-                os.path.dirname(old_source_path),
+                Path(old_source_path).parent,
                 root=settings.ORIGINALS_DIR,
             )
 
-        if instance.has_archive_version and not os.path.isfile(
-            old_archive_path,
-        ):
+        if instance.has_archive_version and not Path(old_archive_path).is_file():
             delete_empty_directories(
-                os.path.dirname(old_archive_path),
+                Path(old_archive_path).parent,
                 root=settings.ARCHIVE_DIR,
             )
 

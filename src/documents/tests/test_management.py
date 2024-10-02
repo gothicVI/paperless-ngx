@@ -1,6 +1,5 @@
 import filecmp
 import hashlib
-import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -16,7 +15,7 @@ from documents.tasks import update_document_archive_file
 from documents.tests.utils import DirectoriesMixin
 from documents.tests.utils import FileSystemAssertsMixin
 
-sample_file = os.path.join(os.path.dirname(__file__), "samples", "simple.pdf")
+sample_file = (Path(__file__).parent / "samples" / "simple.pdf").as_posix()
 
 
 @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
@@ -33,7 +32,7 @@ class TestArchiver(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         doc = self.make_models()
         shutil.copy(
             sample_file,
-            os.path.join(self.dirs.originals_dir, f"{doc.id:07}.pdf"),
+            (Path(self.dirs.originals_dir) / f"{doc.id:07}.pdf").as_posix(),
         )
 
         call_command("document_archiver", "--processes", "1")
@@ -42,7 +41,7 @@ class TestArchiver(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         doc = self.make_models()
         shutil.copy(
             sample_file,
-            os.path.join(self.dirs.originals_dir, f"{doc.id:07}.pdf"),
+            (Path(self.dirs.originals_dir) / f"{doc.id:07}.pdf").as_posix(),
         )
 
         update_document_archive_file(doc.pk)
@@ -87,10 +86,13 @@ class TestArchiver(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             mime_type="application/pdf",
             filename="document_01.pdf",
         )
-        shutil.copy(sample_file, os.path.join(self.dirs.originals_dir, "document.pdf"))
         shutil.copy(
             sample_file,
-            os.path.join(self.dirs.originals_dir, "document_01.pdf"),
+            (Path(self.dirs.originals_dir) / "document.pdf").as_posix(),
+        )
+        shutil.copy(
+            sample_file,
+            (Path(self.dirs.originals_dir) / "document_01.pdf").as_posix(),
         )
 
         update_document_archive_file(doc2.pk)
@@ -105,18 +107,18 @@ class TestArchiver(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
 
 class TestDecryptDocuments(FileSystemAssertsMixin, TestCase):
     @override_settings(
-        ORIGINALS_DIR=os.path.join(os.path.dirname(__file__), "samples", "originals"),
-        THUMBNAIL_DIR=os.path.join(os.path.dirname(__file__), "samples", "thumb"),
+        ORIGINALS_DIR=(Path(__file__).parent / "samples" / "originals").as_posix(),
+        THUMBNAIL_DIR=(Path(__file__).parent / "samples" / "thumb").as_posix(),
         PASSPHRASE="test",
         FILENAME_FORMAT=None,
     )
     @mock.patch("documents.management.commands.decrypt_documents.input")
     def test_decrypt(self, m):
         media_dir = tempfile.mkdtemp()
-        originals_dir = os.path.join(media_dir, "documents", "originals")
-        thumb_dir = os.path.join(media_dir, "documents", "thumbnails")
-        os.makedirs(originals_dir, exist_ok=True)
-        os.makedirs(thumb_dir, exist_ok=True)
+        originals_dir = (Path(media_dir) / "documents" / "originals").as_posix()
+        thumb_dir = (Path(media_dir) / "documents" / "thumbnails").as_posix()
+        Path(originals_dir).mkdir(parents=True, exist_ok=True)
+        Path(thumb_dir).mkdir(parents=True, exist_ok=True)
 
         override_settings(
             ORIGINALS_DIR=originals_dir,
@@ -133,24 +135,24 @@ class TestDecryptDocuments(FileSystemAssertsMixin, TestCase):
         )
 
         shutil.copy(
-            os.path.join(
-                os.path.dirname(__file__),
-                "samples",
-                "documents",
-                "originals",
-                "0000004.pdf.gpg",
-            ),
-            os.path.join(originals_dir, "0000004.pdf.gpg"),
+            (
+                Path(__file__).parent
+                / "samples"
+                / "documents"
+                / "originals"
+                / "0000004.pdf.gpg"
+            ).as_posix(),
+            (Path(originals_dir) / "0000004.pdf.gpg").as_posix(),
         )
         shutil.copy(
-            os.path.join(
-                os.path.dirname(__file__),
-                "samples",
-                "documents",
-                "thumbnails",
-                "0000004.webp.gpg",
-            ),
-            os.path.join(thumb_dir, f"{doc.id:07}.webp.gpg"),
+            (
+                Path(__file__).parent
+                / "samples"
+                / "documents"
+                / "thumbnails"
+                / "0000004.webp.gpg"
+            ).as_posix(),
+            (Path(thumb_dir) / f"{doc.id:07}.webp.gpg").as_posix(),
         )
 
         call_command("decrypt_documents")
@@ -159,9 +161,9 @@ class TestDecryptDocuments(FileSystemAssertsMixin, TestCase):
 
         self.assertEqual(doc.storage_type, Document.STORAGE_TYPE_UNENCRYPTED)
         self.assertEqual(doc.filename, "0000004.pdf")
-        self.assertIsFile(os.path.join(originals_dir, "0000004.pdf"))
+        self.assertIsFile((Path(originals_dir) / "0000004.pdf").as_posix())
         self.assertIsFile(doc.source_path)
-        self.assertIsFile(os.path.join(thumb_dir, f"{doc.id:07}.webp"))
+        self.assertIsFile((Path(thumb_dir) / f"{doc.id:07}.webp").as_posix())
         self.assertIsFile(doc.thumbnail_path)
 
         with doc.source_file as f:

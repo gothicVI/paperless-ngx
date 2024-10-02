@@ -57,9 +57,7 @@ def _is_ignored(filepath: str) -> bool:
 
     Returns True if the file is ignored, False otherwise
     """
-    filepath = os.path.abspath(
-        os.path.normpath(filepath),
-    )
+    filepath = Path(filepath).resolve().as_posix()
 
     # Trim out the consume directory, leaving only filename and it's
     # path relative to the consume directory
@@ -86,14 +84,14 @@ def _is_ignored(filepath: str) -> bool:
 
 
 def _consume(filepath: str) -> None:
-    if os.path.isdir(filepath) or _is_ignored(filepath):
+    if Path(filepath).is_dir() or _is_ignored(filepath):
         return
 
-    if not os.path.isfile(filepath):
+    if not Path(filepath).is_file():
         logger.debug(f"Not consuming file {filepath}: File has moved.")
         return
 
-    if not is_file_ext_supported(os.path.splitext(filepath)[1]):
+    if not is_file_ext_supported(Path(filepath).suffix):
         logger.warning(f"Not consuming file {filepath}: Unknown file extension.")
         return
 
@@ -107,7 +105,7 @@ def _consume(filepath: str) -> None:
 
     while (read_try_count < os_error_retry_count) and not file_open_ok:
         try:
-            with open(filepath, "rb"):
+            with Path(filepath).open("rb"):
                 file_open_ok = True
         except OSError as e:
             read_try_count += 1
@@ -157,7 +155,7 @@ def _consume_wait_unmodified(file: str) -> None:
     current_try = 0
     while current_try < settings.CONSUMER_POLLING_RETRY_COUNT:
         try:
-            stat_data = os.stat(file)
+            stat_data = Path(file).stat()
             new_mtime = stat_data.st_mtime
             new_size = stat_data.st_size
         except FileNotFoundError:
@@ -227,9 +225,9 @@ class Command(BaseCommand):
         if not directory:
             raise CommandError("CONSUMPTION_DIR does not appear to be set.")
 
-        directory = os.path.abspath(directory)
+        directory = Path(directory).resolve().as_posix()
 
-        if not os.path.isdir(directory):
+        if not Path(directory).is_dir():
             raise CommandError(f"Consumption directory {directory} does not exist")
 
         # Consumer will need this
@@ -238,7 +236,7 @@ class Command(BaseCommand):
         if recursive:
             for dirpath, _, filenames in os.walk(directory):
                 for filename in filenames:
-                    filepath = os.path.join(dirpath, filename)
+                    filepath = (Path(dirpath) / filename).as_posix()
                     _consume(filepath)
         else:
             for entry in os.scandir(directory):
@@ -309,7 +307,7 @@ class Command(BaseCommand):
             try:
                 for event in inotify.read(timeout=timeout_ms):
                     path = inotify.get_path(event.wd) if recursive else directory
-                    filepath = os.path.join(path, event.name)
+                    filepath = (Path(path) / event.name).as_posix()
                     if flags.MODIFY in flags.from_mask(event.mask):
                         notified_files.pop(filepath, None)
                     else:
@@ -328,8 +326,8 @@ class Command(BaseCommand):
 
                     # Also make sure the file exists still, some scanners might write a
                     # temporary file first
-                    file_still_exists = os.path.exists(filepath) and os.path.isfile(
-                        filepath,
+                    file_still_exists = (
+                        Path(filepath).exists() and Path(filepath).is_file()
                     )
 
                     if waited_long_enough and file_still_exists:

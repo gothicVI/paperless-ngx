@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 from collections import defaultdict
+from pathlib import Path
 from time import sleep
 
 import pathvalidate
@@ -51,7 +52,7 @@ def many_to_dictionary(field):  # pragma: no cover
 
 
 def archive_name_from_filename(filename):
-    return os.path.splitext(filename)[0] + ".pdf"
+    return Path(filename).stem + ".pdf"
 
 
 def archive_path_old(doc):
@@ -60,7 +61,7 @@ def archive_path_old(doc):
     else:
         fname = f"{doc.pk:07}.pdf"
 
-    return os.path.join(settings.ARCHIVE_DIR, fname)
+    return (Path(settings.ARCHIVE_DIR) / fname).as_posix()
 
 
 STORAGE_TYPE_GPG = "gpg"
@@ -68,7 +69,7 @@ STORAGE_TYPE_GPG = "gpg"
 
 def archive_path_new(doc):
     if doc.archive_filename is not None:
-        return os.path.join(settings.ARCHIVE_DIR, str(doc.archive_filename))
+        return (Path(settings.ARCHIVE_DIR) / str(doc.archive_filename)).as_posix()
     else:
         return None
 
@@ -81,7 +82,7 @@ def source_path(doc):
         if doc.storage_type == STORAGE_TYPE_GPG:
             fname += ".gpg"  # pragma: no cover
 
-    return os.path.join(settings.ORIGINALS_DIR, fname)
+    return (Path(settings.ORIGINALS_DIR) / fname).as_posix()
 
 
 def generate_unique_filename(doc, archive_filename=False):
@@ -104,7 +105,7 @@ def generate_unique_filename(doc, archive_filename=False):
             # still the same as before.
             return new_filename
 
-        if os.path.exists(os.path.join(root, new_filename)):
+        if (Path(root) / new_filename).exists():
             counter += 1
         else:
             return new_filename
@@ -202,18 +203,18 @@ def create_archive_version(doc, retry_count=3):
                 parser,
                 source_path(doc),
                 doc.mime_type,
-                os.path.basename(doc.filename),
+                Path(doc.filename).name,
             )
             doc.content = parser.get_text()
 
-            if parser.get_archive_path() and os.path.isfile(parser.get_archive_path()):
+            if parser.get_archive_path() and Path(parser.get_archive_path()).is_file():
                 doc.archive_filename = generate_unique_filename(
                     doc,
                     archive_filename=True,
                 )
-                with open(parser.get_archive_path(), "rb") as f:
+                with Path(parser.get_archive_path()).open("rb") as f:
                     doc.archive_checksum = hashlib.md5(f.read()).hexdigest()
-                os.makedirs(os.path.dirname(archive_path_new(doc)), exist_ok=True)
+                Path(archive_path_new(doc)).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(parser.get_archive_path(), archive_path_new(doc))
             else:
                 doc.archive_checksum = None
@@ -264,7 +265,7 @@ def move_old_to_new_locations(apps, schema_editor):
     # check that archive files of all unaffected documents are in place
     for doc in Document.objects.filter(archive_checksum__isnull=False):
         old_path = archive_path_old(doc)
-        if doc.id not in affected_document_ids and not os.path.isfile(old_path):
+        if doc.id not in affected_document_ids and not Path(old_path).is_file():
             raise ValueError(
                 f"Archived document ID:{doc.id} does not exist at: {old_path}",
             )
@@ -285,9 +286,9 @@ def move_old_to_new_locations(apps, schema_editor):
         if doc.id in affected_document_ids:
             old_path = archive_path_old(doc)
             # remove affected archive versions
-            if os.path.isfile(old_path):
+            if Path(old_path).is_file():
                 logger.debug(f"Removing {old_path}")
-                os.unlink(old_path)
+                Path(old_path).unlink()
         else:
             # Set archive path for unaffected files
             doc.archive_filename = archive_name_from_filename(doc.filename)
@@ -316,7 +317,7 @@ def move_new_to_old_locations(apps, schema_editor):
                 f"filename.",
             )
         old_archive_paths.add(old_archive_path)
-        if new_archive_path != old_archive_path and os.path.isfile(old_archive_path):
+        if new_archive_path != old_archive_path and Path(old_archive_path).is_file():
             raise ValueError(
                 f"Cannot migrate: Cannot move {new_archive_path} to "
                 f"{old_archive_path}: file already exists.",

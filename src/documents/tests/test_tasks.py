@@ -1,5 +1,5 @@
-import os
 from datetime import timedelta
+from pathlib import Path
 from unittest import mock
 
 from django.conf import settings
@@ -86,18 +86,18 @@ class TestClassifier(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
 
             tasks.train_classifier()
             self.assertIsFile(settings.MODEL_FILE)
-            mtime = os.stat(settings.MODEL_FILE).st_mtime
+            mtime = Path(settings.MODEL_FILE).stat().st_mtime
 
             tasks.train_classifier()
             self.assertIsFile(settings.MODEL_FILE)
-            mtime2 = os.stat(settings.MODEL_FILE).st_mtime
+            mtime2 = Path(settings.MODEL_FILE).stat().st_mtime
             self.assertEqual(mtime, mtime2)
 
             doc.content = "test2"
             doc.save()
             tasks.train_classifier()
             self.assertIsFile(settings.MODEL_FILE)
-            mtime3 = os.stat(settings.MODEL_FILE).st_mtime
+            mtime3 = Path(settings.MODEL_FILE).stat().st_mtime
             self.assertNotEqual(mtime2, mtime3)
 
 

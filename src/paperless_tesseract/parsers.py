@@ -154,7 +154,7 @@ class RasterisedDocumentParser(DocumentParser):
         # the whole text, so do not utilize it in that case
         if (
             sidecar_file is not None
-            and os.path.isfile(sidecar_file)
+            and sidecar_file.is_file()
             and self.settings.mode != "redo"
         ):
             text = self.read_file_handle_unicode_errors(sidecar_file)
@@ -169,7 +169,7 @@ class RasterisedDocumentParser(DocumentParser):
 
         # no success with the sidecar file, try PDF
 
-        if not os.path.isfile(pdf_file):
+        if not Path(pdf_file).is_file():
             return None
 
         try:
@@ -361,8 +361,8 @@ class RasterisedDocumentParser(DocumentParser):
         from ocrmypdf import InputFileError
         from ocrmypdf import SubprocessOutputError
 
-        archive_path = Path(os.path.join(self.tempdir, "archive.pdf"))
-        sidecar_file = Path(os.path.join(self.tempdir, "sidecar.txt"))
+        archive_path = Path(self.tempdir) / "archive.pdf"
+        sidecar_file = Path(self.tempdir) / "sidecar.txt"
 
         args = self.construct_ocrmypdf_parameters(
             document_path,
@@ -405,12 +405,8 @@ class RasterisedDocumentParser(DocumentParser):
                 f"Attempting force OCR to get the text.",
             )
 
-            archive_path_fallback = Path(
-                os.path.join(self.tempdir, "archive-fallback.pdf"),
-            )
-            sidecar_file_fallback = Path(
-                os.path.join(self.tempdir, "sidecar-fallback.txt"),
-            )
+            archive_path_fallback = Path(self.tempdir) / "archive-fallback.pdf"
+            sidecar_file_fallback = Path(self.tempdir) / "sidecar-fallback.txt"
 
             # Attempt to run OCR with safe settings.
 

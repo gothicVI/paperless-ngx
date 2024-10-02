@@ -1,6 +1,5 @@
 import datetime
 import logging
-import os
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -71,7 +70,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         # test that creating dirs for the source_path creates the correct directory
         create_source_path_directory(document.source_path)
         Path(document.source_path).touch()
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsDir((Path(settings.ORIGINALS_DIR) / "none").as_posix())
 
         # Set a correspondent and save the document
         document.correspondent = Correspondent.objects.get_or_create(name="test")[0]
@@ -108,7 +107,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         )
 
         # Make the folder read- and execute-only (no writing and no renaming)
-        os.chmod(os.path.join(settings.ORIGINALS_DIR, "none"), 0o555)
+        (Path(settings.ORIGINALS_DIR) / "none").chmod(0o555)
 
         # Set a correspondent and save the document
         document.correspondent = Correspondent.objects.get_or_create(name="test")[0]
@@ -120,7 +119,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         )
         self.assertEqual(document.filename, "none/none.pdf")
 
-        os.chmod(os.path.join(settings.ORIGINALS_DIR, "none"), 0o777)
+        (Path(settings.ORIGINALS_DIR) / "none").chmod(0o777)
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
     def test_file_renaming_database_error(self):
@@ -160,7 +159,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             # Check proper handling of files
             self.assertIsFile(document.source_path)
             self.assertIsFile(
-                os.path.join(settings.ORIGINALS_DIR, "none/none.pdf"),
+                (Path(settings.ORIGINALS_DIR) / "none/none.pdf").as_posix(),
             )
             self.assertEqual(document.filename, "none/none.pdf")
 
@@ -183,9 +182,9 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         document.delete()
         empty_trash([document.pk])
         self.assertIsNotFile(
-            os.path.join(settings.ORIGINALS_DIR, "none", "none.pdf"),
+            (Path(settings.ORIGINALS_DIR) / "none" / "none.pdf").as_posix(),
         )
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsNotDir((Path(settings.ORIGINALS_DIR) / "none").as_posix())
 
     @override_settings(
         FILENAME_FORMAT="{correspondent}/{correspondent}",
@@ -206,15 +205,19 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         Path(document.source_path).touch()
 
         # Ensure file was moved to trash after delete
-        self.assertIsNotFile(os.path.join(settings.EMPTY_TRASH_DIR, "none", "none.pdf"))
+        self.assertIsNotFile(
+            (Path(settings.EMPTY_TRASH_DIR) / "none" / "none.pdf").as_posix(),
+        )
         document.delete()
         empty_trash([document.pk])
         self.assertIsNotFile(
-            os.path.join(settings.ORIGINALS_DIR, "none", "none.pdf"),
+            (Path(settings.ORIGINALS_DIR) / "none" / "none.pdf").as_posix(),
         )
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none"))
-        self.assertIsFile(os.path.join(settings.EMPTY_TRASH_DIR, "none.pdf"))
-        self.assertIsNotFile(os.path.join(settings.EMPTY_TRASH_DIR, "none_01.pdf"))
+        self.assertIsNotDir((Path(settings.ORIGINALS_DIR) / "none").as_posix())
+        self.assertIsFile((Path(settings.EMPTY_TRASH_DIR) / "none.pdf").as_posix())
+        self.assertIsNotFile(
+            (Path(settings.EMPTY_TRASH_DIR) / "none_01.pdf").as_posix(),
+        )
 
         # Create an identical document and ensure it is trashed under a new name
         document = Document()
@@ -227,7 +230,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         Path(document.source_path).touch()
         document.delete()
         empty_trash([document.pk])
-        self.assertIsFile(os.path.join(settings.EMPTY_TRASH_DIR, "none_01.pdf"))
+        self.assertIsFile((Path(settings.EMPTY_TRASH_DIR) / "none_01.pdf").as_posix())
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
     def test_document_delete_nofile(self):
@@ -261,8 +264,8 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         document.save()
 
         # Check proper handling of files
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "test"))
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsDir((Path(settings.ORIGINALS_DIR) / "none").as_posix())
+        self.assertIsDir((Path(settings.ORIGINALS_DIR) / "test").as_posix())
         self.assertIsFile(important_file)
 
     @override_settings(FILENAME_FORMAT="{document_type} - {title}")
@@ -371,16 +374,16 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         Path(document.source_path).touch()
 
         # Check proper handling of files
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "none/none"))
+        self.assertIsDir((Path(settings.ORIGINALS_DIR) / "none/none").as_posix())
 
         document.delete()
         empty_trash([document.pk])
 
         self.assertIsNotFile(
-            os.path.join(settings.ORIGINALS_DIR, "none/none/none.pdf"),
+            (Path(settings.ORIGINALS_DIR) / "none/none/none.pdf").as_posix(),
         )
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none/none"))
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsNotDir((Path(settings.ORIGINALS_DIR) / "none/none").as_posix())
+        self.assertIsNotDir((Path(settings.ORIGINALS_DIR) / "none").as_posix())
         self.assertIsDir(settings.ORIGINALS_DIR)
 
     @override_settings(FILENAME_FORMAT="{doc_pk}")
@@ -415,12 +418,12 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         (tmp / "notempty" / "empty").mkdir(exist_ok=True, parents=True)
 
         delete_empty_directories(
-            os.path.join(tmp, "notempty", "empty"),
+            (tmp / "notempty" / "empty").as_posix(),
             root=settings.ORIGINALS_DIR,
         )
-        self.assertIsDir(os.path.join(tmp, "notempty"))
-        self.assertIsFile(os.path.join(tmp, "notempty", "file"))
-        self.assertIsNotDir(os.path.join(tmp, "notempty", "empty"))
+        self.assertIsDir((tmp / "notempty").as_posix())
+        self.assertIsFile((tmp / "notempty" / "file").as_posix())
+        self.assertIsNotDir((tmp / "notempty" / "empty").as_posix())
 
     @override_settings(FILENAME_FORMAT="{% if x is None %}/{title]")
     def test_invalid_format(self):
@@ -531,8 +534,8 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
 class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
     @override_settings(FILENAME_FORMAT=None)
     def test_create_no_format(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -550,8 +553,8 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     def test_create_with_format(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -578,8 +581,8 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     def test_move_archive_gone(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         doc = Document.objects.create(
             mime_type="application/pdf",
@@ -597,9 +600,11 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     def test_move_archive_exists(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
-        existing_archive_file = os.path.join(settings.ARCHIVE_DIR, "none", "my_doc.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
+        existing_archive_file = (
+            Path(settings.ARCHIVE_DIR) / "none" / "my_doc.pdf"
+        ).as_posix()
         Path(original).touch()
         Path(archive).touch()
         (settings.ARCHIVE_DIR / "none").mkdir(parents=True, exist_ok=True)
@@ -622,8 +627,8 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{title}")
     def test_move_original_only(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "document_01.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "document.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "document_01.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "document.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
 
@@ -644,8 +649,8 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{title}")
     def test_move_archive_only(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "document.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "document_01.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "document.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "document_01.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
 
@@ -671,13 +676,13 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
             if "archive" in str(src):
                 raise OSError
             else:
-                os.remove(src)
+                Path(src).unlink()
                 Path(dst).touch()
 
         m.side_effect = fake_rename
 
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -697,8 +702,8 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     def test_move_file_gone(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         # Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -722,13 +727,13 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
             if "original" in str(src):
                 raise OSError
             else:
-                os.remove(src)
+                Path(src).unlink()
                 Path(dst).touch()
 
         m.side_effect = fake_rename
 
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -748,8 +753,8 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="")
     def test_archive_deleted(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -776,9 +781,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{title}")
     def test_archive_deleted2(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "document.webp")
-        original2 = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "document.webp").as_posix()
+        original2 = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         Path(original2).touch()
         Path(archive).touch()
@@ -811,8 +816,8 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     def test_database_error(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = (Path(settings.ORIGINALS_DIR) / "0000001.pdf").as_posix()
+        archive = (Path(settings.ARCHIVE_DIR) / "0000001.pdf").as_posix()
         Path(original).touch()
         Path(archive).touch()
         doc = Document(
