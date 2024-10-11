@@ -12,10 +12,10 @@ from django.db import migrations
 
 from documents.parsers import run_convert
 
-logger = logging.getLogger("paperless.migrations")
+logger: logging.Logger = logging.getLogger("paperless.migrations")
 
 
-def _do_convert(work_package):
+def _do_convert(work_package) -> None:
     (
         existing_encrypted_thumbnail,
         converted_encrypted_thumbnail,
@@ -30,16 +30,16 @@ def _do_convert(work_package):
         # Decrypt png
         decrypted_thumbnail = existing_encrypted_thumbnail.with_suffix("").resolve()
 
-        with open(existing_encrypted_thumbnail, "rb") as existing_encrypted_file:
+        with Path(existing_encrypted_thumbnail).open("rb") as existing_encrypted_file:
             raw_thumb = gpg.decrypt_file(
                 existing_encrypted_file,
                 passphrase=passphrase,
                 always_trust=True,
             ).data
-            with open(decrypted_thumbnail, "wb") as decrypted_file:
+            with Path(decrypted_thumbnail).open("wb") as decrypted_file:
                 decrypted_file.write(raw_thumb)
 
-        converted_decrypted_thumbnail = Path(
+        converted_decrypted_thumbnail: Path = Path(
             str(converted_encrypted_thumbnail).replace("webp.gpg", "webp"),
         ).resolve()
 
@@ -62,7 +62,7 @@ def _do_convert(work_package):
         )
 
         # Encrypt webp
-        with open(converted_decrypted_thumbnail, "rb") as converted_decrypted_file:
+        with Path(converted_decrypted_thumbnail).open("rb") as converted_decrypted_file:
             encrypted = gpg.encrypt_file(
                 fileobj_or_path=converted_decrypted_file,
                 recipients=None,
@@ -71,7 +71,9 @@ def _do_convert(work_package):
                 always_trust=True,
             ).data
 
-            with open(converted_encrypted_thumbnail, "wb") as converted_encrypted_file:
+            with Path(converted_encrypted_thumbnail).open(
+                "wb",
+            ) as converted_encrypted_file:
                 converted_encrypted_file.write(encrypted)
 
         # Copy newly created thumbnail to thumbnail directory
@@ -95,11 +97,11 @@ def _do_convert(work_package):
         logger.error(f"Error converting thumbnail (existing file unchanged): {e}")
 
 
-def _convert_encrypted_thumbnails_to_webp(apps, schema_editor):
-    start = time.time()
+def _convert_encrypted_thumbnails_to_webp(apps, schema_editor) -> None:
+    start: float = time.time()
 
     with tempfile.TemporaryDirectory() as tempdir:
-        work_packages = []
+        work_packages: list = []
 
         if len(list(Path(settings.THUMBNAIL_DIR).glob("*.png.gpg"))) > 0:
             passphrase = settings.PASSPHRASE
@@ -111,15 +113,15 @@ def _convert_encrypted_thumbnails_to_webp(apps, schema_editor):
                 )
 
             for file in Path(settings.THUMBNAIL_DIR).glob("*.png.gpg"):
-                existing_thumbnail = file.resolve()
+                existing_thumbnail: Path = file.resolve()
 
                 # Change the existing filename suffix from png to webp
-                converted_thumbnail_name = Path(
+                converted_thumbnail_name: str = Path(
                     str(existing_thumbnail).replace(".png.gpg", ".webp.gpg"),
                 ).name
 
                 # Create the expected output filename in the tempdir
-                converted_thumbnail = (
+                converted_thumbnail: Path = (
                     Path(tempdir) / Path(converted_thumbnail_name)
                 ).resolve()
 
@@ -143,18 +145,18 @@ def _convert_encrypted_thumbnails_to_webp(apps, schema_editor):
                 ) as pool:
                     pool.map(_do_convert, work_packages)
 
-                    end = time.time()
-                    duration = end - start
+                    end: float = time.time()
+                    duration: float = end - start
 
                 logger.info(f"Conversion completed in {duration:.3f}s")
 
 
 class Migration(migrations.Migration):
-    dependencies = [
+    dependencies: list[tuple[str, str]] = [
         ("documents", "1036_alter_savedviewfilterrule_rule_type"),
     ]
 
-    operations = [
+    operations: list = [
         migrations.RunPython(
             code=_convert_encrypted_thumbnails_to_webp,
             reverse_code=migrations.RunPython.noop,

@@ -1,16 +1,18 @@
 import logging
-import os
 import pickle
 import re
 import warnings
 from collections.abc import Iterator
 from hashlib import sha256
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Optional
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from pathlib import Path
+    from hashlib import _Hash
+
+    from numpy import ndarray
 
 from django.conf import settings
 from django.core.cache import cache
@@ -23,12 +25,12 @@ from documents.caching import CLASSIFIER_VERSION_KEY
 from documents.models import Document
 from documents.models import MatchingModel
 
-logger = logging.getLogger("paperless.classifier")
+logger: logging.Logger = logging.getLogger("paperless.classifier")
 
 
 class IncompatibleClassifierVersionError(Exception):
     def __init__(self, message: str, *args: object) -> None:
-        self.message = message
+        self.message: str = message
         super().__init__(*args)
 
 
@@ -37,7 +39,7 @@ class ClassifierModelCorruptError(Exception):
 
 
 def load_classifier() -> Optional["DocumentClassifier"]:
-    if not os.path.isfile(settings.MODEL_FILE):
+    if not Path(settings.MODEL_FILE).is_file():
         logger.debug(
             "Document classification model does not exist (yet), not "
             "performing automatic matching.",
@@ -50,7 +52,7 @@ def load_classifier() -> Optional["DocumentClassifier"]:
 
     except IncompatibleClassifierVersionError as e:
         logger.info(f"Classifier version incompatible: {e.message}, will re-train")
-        os.unlink(settings.MODEL_FILE)
+        Path(settings.MODEL_FILE).unlink()
         classifier = None
     except ClassifierModelCorruptError:
         # there's something wrong with the model file.
@@ -58,7 +60,7 @@ def load_classifier() -> Optional["DocumentClassifier"]:
             "Unrecoverable error while loading document "
             "classification model, deleting model file.",
         )
-        os.unlink(settings.MODEL_FILE)
+        Path(settings.MODEL_FILE).unlink
         classifier = None
     except OSError:
         logger.exception("IO error while loading document classification model")
@@ -76,7 +78,7 @@ class DocumentClassifier:
     # v9 - Changed from hashing to time/ids for re-train check
     FORMAT_VERSION = 9
 
-    def __init__(self):
+    def __init__(self) -> None:
         # last time a document changed and therefore training might be required
         self.last_doc_change_time: datetime | None = None
         # Hash of primary keys of AUTO matching values last used in training
@@ -95,7 +97,7 @@ class DocumentClassifier:
     def load(self) -> None:
         # Catch warnings for processing
         with warnings.catch_warnings(record=True) as w:
-            with open(settings.MODEL_FILE, "rb") as f:
+            with Path(settings.MODEL_FILE).open("rb") as f:
                 schema_version = pickle.load(f)
 
                 if schema_version != self.FORMAT_VERSION:
@@ -132,11 +134,11 @@ class DocumentClassifier:
                 ):
                     raise IncompatibleClassifierVersionError("sklearn version update")
 
-    def save(self):
+    def save(self) -> None:
         target_file: Path = settings.MODEL_FILE
-        target_file_temp = target_file.with_suffix(".pickle.part")
+        target_file_temp: Path = target_file.with_suffix(".pickle.part")
 
-        with open(target_file_temp, "wb") as f:
+        with Path(target_file_temp).open("wb") as f:
             pickle.dump(self.FORMAT_VERSION, f)
 
             pickle.dump(self.last_doc_change_time, f)
@@ -153,7 +155,7 @@ class DocumentClassifier:
 
         target_file_temp.rename(target_file)
 
-    def train(self):
+    def train(self) -> bool:
         # Get non-inbox documents
         docs_queryset = (
             Document.objects.exclude(
@@ -167,14 +169,14 @@ class DocumentClassifier:
         if docs_queryset.count() == 0:
             raise ValueError("No training data available.")
 
-        labels_tags = []
-        labels_correspondent = []
-        labels_document_type = []
-        labels_storage_path = []
+        labels_tags: list = []
+        labels_correspondent: list = []
+        labels_document_type: list = []
+        labels_storage_path: list = []
 
         # Step 1: Extract and preprocess training data from the database.
         logger.debug("Gathering data from database...")
-        hasher = sha256()
+        hasher: _Hash = sha256()
         for doc in docs_queryset:
             y = -1
             dt = doc.document_type
@@ -190,7 +192,7 @@ class DocumentClassifier:
             hasher.update(y.to_bytes(4, "little", signed=True))
             labels_correspondent.append(y)
 
-            tags = sorted(
+            tags: list = sorted(
                 tag.pk
                 for tag in doc.tags.filter(
                     matching_algorithm=MatchingModel.MATCH_AUTO,
@@ -207,9 +209,9 @@ class DocumentClassifier:
             hasher.update(y.to_bytes(4, "little", signed=True))
             labels_storage_path.append(y)
 
-        labels_tags_unique = {tag for tags in labels_tags for tag in tags}
+        labels_tags_unique: set = {tag for tags in labels_tags for tag in tags}
 
-        num_tags = len(labels_tags_unique)
+        num_tags: int = len(labels_tags_unique)
 
         # Check if retraining is actually required.
         # A document has been updated since the classifier was trained
@@ -236,9 +238,9 @@ class DocumentClassifier:
         # union with {-1} accounts for cases where all documents have
         # correspondents and types assigned, so -1 isn't part of labels_x, which
         # it usually is.
-        num_correspondents = len(set(labels_correspondent) | {-1}) - 1
-        num_document_types = len(set(labels_document_type) | {-1}) - 1
-        num_storage_paths = len(set(labels_storage_path) | {-1}) - 1
+        num_correspondents: int = len(set(labels_correspondent) | {-1}) - 1
+        num_document_types: int = len(set(labels_document_type) | {-1}) - 1
+        num_storage_paths: int = len(set(labels_storage_path) | {-1}) - 1
 
         logger.debug(
             f"{docs_queryset.count()} documents, {num_tags} tag(s), {num_correspondents} correspondent(s), "
@@ -266,7 +268,9 @@ class DocumentClassifier:
             min_df=0.01,
         )
 
-        data_vectorized = self.data_vectorizer.fit_transform(content_generator())
+        data_vectorized: ndarray = self.data_vectorizer.fit_transform(
+            content_generator(),
+        )
 
         # See the notes here:
         # https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.CountVectorizer.html
@@ -284,7 +288,7 @@ class DocumentClassifier:
                     label[0] if len(label) == 1 else -1 for label in labels_tags
                 ]
                 self.tags_binarizer = LabelBinarizer()
-                labels_tags_vectorized = self.tags_binarizer.fit_transform(
+                labels_tags_vectorized: ndarray = self.tags_binarizer.fit_transform(
                     labels_tags,
                 ).ravel()
             else:
@@ -388,7 +392,7 @@ class DocumentClassifier:
                     language=settings.NLTK_LANGUAGE,
                 )
 
-                meaningful_words = []
+                meaningful_words: list = []
                 for word in words:
                     # Skip stop words
                     # These are words like "a", "and", "the" which add little meaning
