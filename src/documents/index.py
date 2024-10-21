@@ -1,10 +1,10 @@
 import logging
 import math
-import os
 from collections import Counter
 from contextlib import contextmanager
 from datetime import datetime
 from datetime import timezone
+from pathlib import Path
 from shutil import rmtree
 
 from django.conf import settings
@@ -93,7 +93,7 @@ def open_index(recreate=False) -> FileIndex:
         logger.exception("Error while opening the index, recreating.")
 
     # create_in doesn't handle corrupted indexes very well, remove the directory entirely first
-    if os.path.isdir(settings.INDEX_DIR):
+    if Path(settings.INDEX_DIR).is_dir():
         rmtree(settings.INDEX_DIR)
     settings.INDEX_DIR.mkdir(parents=True, exist_ok=True)
 
