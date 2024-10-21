@@ -451,7 +451,7 @@ class BarcodePlugin(ConsumeTaskPlugin):
 
                 logger.debug(f"pdf no:{doc_idx} has {len(dst.pages)} pages")
                 savepath = Path(self.temp_dir.name) / output_filename
-                with open(savepath, "wb") as out:
+                with savepath.open("wb") as out:
                     dst.save(out)
 
                 copy_basic_file_stats(self.input_doc.original_file, savepath)
