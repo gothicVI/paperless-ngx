@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -69,7 +69,7 @@ class Command(BaseCommand):
 
             document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
 
-            ext = os.path.splitext(document.filename)[1]
+            ext = Path(document.filename).suffix
 
             if not ext == ".gpg":
                 raise CommandError(
@@ -77,12 +77,12 @@ class Command(BaseCommand):
                     f"end with .gpg",
                 )
 
-            document.filename = os.path.splitext(document.filename)[0]
+            document.filename = Path(document.filename).stem
 
-            with open(document.source_path, "wb") as f:
+            with Path(document.source_path).open("wb") as f:
                 f.write(raw_document)
 
-            with open(document.thumbnail_path, "wb") as f:
+            with Path(document.thumbnail_path).open("wb") as f:
                 f.write(raw_thumb)
 
             Document.objects.filter(id=document.id).update(
@@ -91,4 +91,4 @@ class Command(BaseCommand):
             )
 
             for path in old_paths:
-                os.unlink(path)
+                Path(path).unlink()

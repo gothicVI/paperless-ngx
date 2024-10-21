@@ -30,13 +30,13 @@ def _do_convert(work_package):
         # Decrypt png
         decrypted_thumbnail = existing_encrypted_thumbnail.with_suffix("").resolve()
 
-        with open(existing_encrypted_thumbnail, "rb") as existing_encrypted_file:
+        with Path(existing_encrypted_thumbnail).open("rb") as existing_encrypted_file:
             raw_thumb = gpg.decrypt_file(
                 existing_encrypted_file,
                 passphrase=passphrase,
                 always_trust=True,
             ).data
-            with open(decrypted_thumbnail, "wb") as decrypted_file:
+            with Path(decrypted_thumbnail).open("wb") as decrypted_file:
                 decrypted_file.write(raw_thumb)
 
         converted_decrypted_thumbnail = Path(
@@ -62,7 +62,7 @@ def _do_convert(work_package):
         )
 
         # Encrypt webp
-        with open(converted_decrypted_thumbnail, "rb") as converted_decrypted_file:
+        with Path(converted_decrypted_thumbnail).open("rb") as converted_decrypted_file:
             encrypted = gpg.encrypt_file(
                 fileobj_or_path=converted_decrypted_file,
                 recipients=None,
@@ -71,7 +71,9 @@ def _do_convert(work_package):
                 always_trust=True,
             ).data
 
-            with open(converted_encrypted_thumbnail, "wb") as converted_encrypted_file:
+            with Path(converted_encrypted_thumbnail).open(
+                "wb",
+            ) as converted_encrypted_file:
                 converted_encrypted_file.write(encrypted)
 
         # Copy newly created thumbnail to thumbnail directory
