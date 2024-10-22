@@ -1,16 +1,15 @@
 import logging
-import os
 import pickle
 import re
 import warnings
 from collections.abc import Iterator
 from hashlib import sha256
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Optional
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from pathlib import Path
 
 from django.conf import settings
 from django.core.cache import cache
@@ -37,7 +36,7 @@ class ClassifierModelCorruptError(Exception):
 
 
 def load_classifier() -> Optional["DocumentClassifier"]:
-    if not os.path.isfile(settings.MODEL_FILE):
+    if not Path(settings.MODEL_FILE).is_file():
         logger.debug(
             "Document classification model does not exist (yet), not "
             "performing automatic matching.",
@@ -50,7 +49,7 @@ def load_classifier() -> Optional["DocumentClassifier"]:
 
     except IncompatibleClassifierVersionError as e:
         logger.info(f"Classifier version incompatible: {e.message}, will re-train")
-        os.unlink(settings.MODEL_FILE)
+        Path(settings.MODEL_FILE).unlink()
         classifier = None
     except ClassifierModelCorruptError:
         # there's something wrong with the model file.
@@ -58,7 +57,7 @@ def load_classifier() -> Optional["DocumentClassifier"]:
             "Unrecoverable error while loading document "
             "classification model, deleting model file.",
         )
-        os.unlink(settings.MODEL_FILE)
+        Path(settings.MODEL_FILE).unlink
         classifier = None
     except OSError:
         logger.exception("IO error while loading document classification model")
@@ -95,7 +94,7 @@ class DocumentClassifier:
     def load(self) -> None:
         # Catch warnings for processing
         with warnings.catch_warnings(record=True) as w:
-            with open(settings.MODEL_FILE, "rb") as f:
+            with Path(settings.MODEL_FILE).open("rb") as f:
                 schema_version = pickle.load(f)
 
                 if schema_version != self.FORMAT_VERSION:
@@ -136,7 +135,7 @@ class DocumentClassifier:
         target_file: Path = settings.MODEL_FILE
         target_file_temp = target_file.with_suffix(".pickle.part")
 
-        with open(target_file_temp, "wb") as f:
+        with Path(target_file_temp).open("wb") as f:
             pickle.dump(self.FORMAT_VERSION, f)
 
             pickle.dump(self.last_doc_change_time, f)
