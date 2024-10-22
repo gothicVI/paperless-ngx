@@ -344,24 +344,24 @@ class Command(CryptMixin, BaseCommand):
             document = Document.objects.get(pk=record["pk"])
 
             doc_file = record[EXPORTER_FILE_NAME]
-            document_path = os.path.join(self.source, doc_file)
+            document_path = self.source / doc_file
 
             if EXPORTER_THUMBNAIL_NAME in record:
                 thumb_file = record[EXPORTER_THUMBNAIL_NAME]
-                thumbnail_path = Path(os.path.join(self.source, thumb_file)).resolve()
+                thumbnail_path = (self.source / thumb_file).resolve()
             else:
                 thumbnail_path = None
 
             if EXPORTER_ARCHIVE_NAME in record:
                 archive_file = record[EXPORTER_ARCHIVE_NAME]
-                archive_path = os.path.join(self.source, archive_file)
+                archive_path = self.source / archive_file
             else:
                 archive_path = None
 
             document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
 
             with FileLock(settings.MEDIA_LOCK):
-                if os.path.isfile(document.source_path):
+                if Path(document.source_path).is_file():
                     raise FileExistsError(document.source_path)
 
                 create_source_path_directory(document.source_path)
