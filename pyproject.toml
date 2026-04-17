@@ -133,6 +133,7 @@ typing = [
   "djangorestframework-stubs[compatible-mypy]",
   "lxml-stubs",
   "microsoft-python-type-stubs @ git+https://github.com/microsoft/python-type-stubs.git",
+  "monkeytype>=23.3.0",
   "mypy",
   "mypy-baseline",
   "pyrefly",
